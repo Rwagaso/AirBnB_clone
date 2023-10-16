@@ -1,93 +1,103 @@
 #!/usr/bin/python3
-"""Unittest module for the City Class.
-Unittest classes:
-    TestCity_instantiation
-    TestCity_save
-    TestCity_to_dict
-"""
 
-import unittest
-from datetime import datetime
-import time
+"""[Unittest for city]
+    """
+from datetime import date, datetime
+from unittest import TestCase
+from models import city
 import uuid
-from models.city import City
-import re
-import json
-from models.engine.file_storage import FileStorage
-import os
-from models import storage
-from models.base_model import BaseModel
+import pycodestyle
+City = city.City
 
-class TestCity(unittest.TestCase):
-    """City model class test case"""
 
+class Test_style(TestCase):
+    """[Class created to test style and syntax requirements for the
+    city class]
+    """
+
+    def test_pycode(self):
+        """[Function that check Syntax from Peep8 branch called pycodestyle]
+        """
+        foo = pycodestyle.StyleGuide(quiet=True).check_files([
+            'models/city.py'])
+        self.assertEqual(foo.total_errors, 0,
+                         "Found code style error (and warnings).")
+
+
+class Test_city(TestCase):
+    """[Class for testing all the function of city class]
+    """
     @classmethod
     def setUpClass(cls):
-        """Setup the unittest"""
-        cls.city = City()
-        cls.city.state_id = str(uuid.uuid4())
-        cls.city.name = "St. Petesburg"
+        """Setting up a test object"""
+        cls.city1 = City()
 
-    @classmethod
-    def tearDownClass(cls):
-        """Clean up the dirt"""
-        del cls.city
-        try:
-            os.remove("file.json")
-        except FileNotFoundError:
-            pass
+    def test_empty_city(self):
+        """[Testing if instance is correcty related]
+        """
+        self.assertIsNotNone(self.city1)
+        self.assertIsInstance(self.city1, City)
 
-    def test_no_args_instantiates(self):
-        self.assertEqual(City, type(City()))
+    def test_id_value(self):
+        """[Cheking if id is an uuid version 4]
+        """
+        city_test2 = City(id='1')
+        with self.assertRaises(ValueError) as _:
+            uuid.UUID(city_test2.id, version=4)
+        city_test3 = City(id=['1'])
+        with self.assertRaises(AttributeError) as _:
+            uuid.UUID(city_test3.id, version=4)
 
-    def test_new_instance_stored_in_objects(self):
-        self.assertIn(City(), storage.all().values())
+    def test_dates(self):
+        """[Cheking dates are correctly created]
+        """
+        self.assertIsInstance(self.city1.created_at, datetime)
+        self.assertIsInstance(self.city1.updated_at, datetime)
 
-    def test_id_is_public_str(self):
-        self.assertEqual(str, type(City().id))
-
-    def test_created_at_is_public_datetime(self):
-        self.assertEqual(datetime, type(City().created_at))
-
-    def test_updated_at_is_public_datetime(self):
-        self.assertEqual(datetime, type(City().updated_at))
-
-    def test_is_subclass(self):
-        self.assertTrue(issubclass(self.city.__class__, BaseModel))
-
-    def checking_for_doc(self):
-        self.assertIsNotNone(City.__doc__)
-
-    def test_has_attributes(self):
-        self.assertTrue('id' in self.city.__dict__)
-        self.assertTrue('created_at' in self.city.__dict__)
-        self.assertTrue('updated_at' in self.city.__dict__)
-        self.assertTrue('state_id' in self.city.__dict__)
-        self.assertTrue('name' in self.city.__dict__)
-
-    def test_state_id_is_public_class_attribute(self):
-        ci = City()
-        self.assertEqual(str, type(City.state_id))
-        self.assertIn("state_id", dir(ci))
-        self.assertNotIn("state_id", ci.__dict__)
-
-    def test_name_is_public_class_attribute(self):
-        ci = City()
-        self.assertEqual(str, type(City.name))
-        self.assertIn("name", dir(ci))
-        self.assertNotIn("name", ci.__dict__)
-
-    def test_attributes_are_string(self):
-        self.assertIs(type(self.city.state_id), str)
-        self.assertIs(type(self.city.name), str)
+    def test__str__(self):
+        """[Cheking correct output when printing]"""
+        id1 = self.city1.id
+        self.assertTrue(f'[City] ({id1})' in str(self.city1))
 
     def test_save(self):
-        self.city.save()
-        self.assertNotEqual(self.city.created_at, self.city.updated_at)
+        """Checks if updated_at is changed with save method"""
+        self.city1.save()
+        self.assertNotEqual(self.city1.updated_at,
+                            self.city1.created_at)
 
     def test_to_dict(self):
-        self.assertTrue('to_dict' in dir(self.city))
+        """Checks to_dict method"""
+        city_test4 = City()
+        dict_city4 = city_test4.to_dict()
+        self.assertIsInstance(dict_city4, dict)
+        self.assertIsInstance(dict_city4['created_at'], str)
+        self.assertIsInstance(dict_city4['updated_at'], str)
 
+    def test_attributes(self):
+        """Checks correct attributes assignment"""
+        city5 = City(state_id=123)
+        city5.name = "Cali"
+        self.assertEqual(city5.state_id, 123)
+        self.assertEqual(city5.name, 'Cali')
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_creating_with_kwargs(self):
+        """[Checking creation with kwargs]"""
+        obj = City()
+        dictionary = obj.to_dict()
+        new_date = datetime.today()
+        new_date_iso = new_date.isoformat()
+        dictionary["created_at"] = new_date_iso
+        dictionary["updated_at"] = new_date_iso
+        id = dictionary["id"]
+        obj = City(**dictionary)
+        self.assertEqual(obj.id, id)
+        self.assertEqual(obj.created_at, new_date)
+        self.assertEqual(obj.updated_at, new_date)
+
+    def test_save_with_file(self):
+        """ Checks if the generated key is saved in the json file"""
+        obj = City()
+        obj.save()
+        key_id = f"City.{obj.id}"
+        with open("file.json", mode="r", encoding="utf-8") as f:
+            self.assertIn(key_id, f.read())
